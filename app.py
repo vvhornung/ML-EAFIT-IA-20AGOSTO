@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -12,9 +10,9 @@ import seaborn as sns
 # -------------------------------
 # 1. Configuración inicial
 # -------------------------------
-st.set_page_config(page_title="ML Demo App", layout="wide")
-st.title("🤖 Demo: Modelos Supervisados en Streamlit")
-st.write("Puedes subir tu propio CSV o usar datos simulados (300 muestras, 6 columnas).")
+st.set_page_config(page_title="Árbol de Decisión - Análisis de Datos", layout="wide")
+st.title("🌱 Análisis de Datos con Árbol de Decisión")
+st.write("Sube un archivo CSV (ej: datos de agricultura) o usa datos simulados.")
 
 # -------------------------------
 # 2. Subida de dataset
@@ -43,28 +41,20 @@ st.dataframe(df.head())
 # -------------------------------
 # 4. Selección de variables
 # -------------------------------
-if "target" in df.columns:
-    target_col = st.selectbox("Selecciona la variable objetivo (target):", df.columns, index=len(df.columns)-1)
-    feature_cols = st.multiselect("Selecciona las variables predictoras (features):", df.columns.drop(target_col), default=list(df.columns.drop(target_col)))
-else:
-    st.error("❌ El dataset debe contener una columna llamada 'target' o seleccionar una manualmente.")
-    st.stop()
+target_col = st.selectbox("Selecciona la variable objetivo (target):", df.columns, index=len(df.columns)-1)
+feature_cols = st.multiselect("Selecciona las variables predictoras (features):", df.columns.drop(target_col), default=list(df.columns.drop(target_col)))
 
 X = df[feature_cols]
 y = df[target_col]
 
 # -------------------------------
-# 5. Selección de modelo
+# 5. Configuración del Árbol
 # -------------------------------
-st.subheader("⚙️ Configuración del modelo")
-model_name = st.radio("Elige el modelo supervisado:", ["Logistic Regression", "Decision Tree", "Random Forest"])
+st.subheader("⚙️ Configuración del Árbol de Decisión")
+max_depth = st.slider("Profundidad máxima del árbol", 1, 15, 5)
+criterion = st.radio("Criterio de división:", ["gini", "entropy"], index=0)
 
-if model_name == "Logistic Regression":
-    model = LogisticRegression(max_iter=1000)
-elif model_name == "Decision Tree":
-    model = DecisionTreeClassifier()
-else:
-    model = RandomForestClassifier()
+model = DecisionTreeClassifier(max_depth=max_depth, criterion=criterion, random_state=42)
 
 # -------------------------------
 # 6. Entrenamiento
@@ -85,7 +75,7 @@ st.write(f"**Exactitud (accuracy):** {acc:.2f}")
 # Matriz de confusión
 cm = confusion_matrix(y_test, y_pred)
 fig, ax = plt.subplots()
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=np.unique(y), yticklabels=np.unique(y), ax=ax)
+sns.heatmap(cm, annot=True, fmt="d", cmap="Greens", xticklabels=np.unique(y), yticklabels=np.unique(y), ax=ax)
 ax.set_xlabel("Predicción")
 ax.set_ylabel("Real")
 st.pyplot(fig)
@@ -94,6 +84,17 @@ st.pyplot(fig)
 st.text("Reporte de Clasificación:")
 st.text(classification_report(y_test, y_pred))
 
+# Importancia de variables
+st.subheader("📌 Importancia de las variables")
+importances = pd.Series(model.feature_importances_, index=feature_cols).sort_values(ascending=False)
+st.bar_chart(importances)
+
+# Visualización del árbol
+st.subheader("🌳 Visualización del Árbol de Decisión")
+fig, ax = plt.subplots(figsize=(12, 6))
+plot_tree(model, feature_names=feature_cols, class_names=[str(c) for c in np.unique(y)], filled=True, ax=ax)
+st.pyplot(fig)
+
 # -------------------------------
 # 8. Predicción manual
 # -------------------------------
@@ -101,9 +102,14 @@ st.subheader("🔮 Haz una predicción manual")
 
 manual_inputs = []
 for col in feature_cols:
-    val = st.number_input(f"Ingresar valor para {col}", value=0.0)
+    if pd.api.types.is_numeric_dtype(df[col]):
+        val = st.number_input(f"Ingresar valor para {col}", value=float(df[col].mean()))
+    else:
+        opciones = df[col].unique().tolist()
+        val = st.selectbox(f"Selecciona valor para {col}", opciones)
     manual_inputs.append(val)
 
 if st.button("Predecir con valores manuales"):
-    pred = model.predict([manual_inputs])[0]
-    st.success(f"✅ El modelo predice: **{pred}**")
+    manual_df = pd.DataFrame([manual_inputs], columns=feature_cols)
+    pred = model.predict(manual_df)[0]
+    st.success(f"✅ El árbol predice: **{pred}**")
