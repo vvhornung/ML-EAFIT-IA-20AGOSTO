@@ -80,4 +80,30 @@ y_pred = model.predict(X_test)
 # -------------------------------
 st.subheader("📊 Resultados del modelo")
 acc = accuracy_score(y_test, y_pred)
-st.write(f
+st.write(f"**Exactitud (accuracy):** {acc:.2f}")
+
+# Matriz de confusión
+cm = confusion_matrix(y_test, y_pred)
+fig, ax = plt.subplots()
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=np.unique(y), yticklabels=np.unique(y), ax=ax)
+ax.set_xlabel("Predicción")
+ax.set_ylabel("Real")
+st.pyplot(fig)
+
+# Reporte de clasificación
+st.text("Reporte de Clasificación:")
+st.text(classification_report(y_test, y_pred))
+
+# -------------------------------
+# 8. Predicción manual
+# -------------------------------
+st.subheader("🔮 Haz una predicción manual")
+
+manual_inputs = []
+for col in feature_cols:
+    val = st.number_input(f"Ingresar valor para {col}", value=0.0)
+    manual_inputs.append(val)
+
+if st.button("Predecir con valores manuales"):
+    pred = model.predict([manual_inputs])[0]
+    st.success(f"✅ El modelo predice: **{pred}**")
